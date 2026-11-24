@@ -1,0 +1,6 @@
+.env
+app.log
+.venv/
+.uv-cache/
+__pycache__/
+.keeper-state/

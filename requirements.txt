@@ -1,0 +1,4 @@
+APScheduler==3.11.2
+python-dotenv==1.0.0
+Requests==2.31.0
+paramiko==2.8.1

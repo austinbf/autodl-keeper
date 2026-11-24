@@ -1,0 +1,56 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>AutoDL 续航</title>
+<link rel="icon" type="image/png" sizes="32x32" href="icons/icon-32.png?v=122">
+<link rel="stylesheet" href="style.css">
+<script src="app.js" defer></script>
+</head>
+<body>
+<main>
+<header><img id="brand-icon" width="32" height="32" alt="" hidden><h1>AutoDL 续航</h1></header>
+<div class="views">
+<div id="dashboard">
+<section aria-labelledby="progress">
+<h2 id="progress">下次自动保活</h2>
+<p id="countdown">等待配置</p>
+<p id="last"></p>
+<p id="state" role="status">等待运行</p>
+<details id="log-details" hidden>
+<summary>执行日志</summary>
+<ol id="events"></ol>
+</details>
+</section>
+<section aria-labelledby="instances">
+<div class="section-heading">
+<h2 id="instances">实例健康</h2>
+<button id="load" class="secondary" disabled>刷新</button>
+</div>
+<div id="list">在左下角设置中保存令牌。</div>
+<button id="run" disabled>手动开关机</button>
+<div id="run-confirmation" hidden>
+<p id="run-summary"></p>
+<button id="confirm-run">确认执行</button>
+<button id="cancel-run" class="secondary">取消</button>
+</div>
+</section>
+</div>
+<section id="settings" aria-labelledby="settings-title" hidden>
+<h2 id="settings-title" tabindex="-1">设置</h2>
+<p id="configured" role="status"></p>
+<p>连续关机释放时间剩余三天时，自动提前保活。</p>
+<label for="token">AutoDL 网页令牌</label>
+<input id="token" type="password" autocomplete="off" spellcheck="false">
+<div class="row">
+<button id="save" disabled>保存令牌</button>
+<button id="forget" class="secondary" disabled>停用自动保活</button>
+</div>
+</section>
+</div>
+<p id="message" role="status"></p>
+<footer><button id="settings-toggle" class="secondary" aria-controls="settings" aria-expanded="false">设置</button></footer>
+</main>
+</body>
+</html>
