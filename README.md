@@ -3,9 +3,20 @@
 AutoDL 实例保活工具。Edge 弹窗查看实例状态、磁盘健康和预计释放时间，
 也可手动执行无卡开关机。自动保活可由 Windows 本机服务或 GitHub Actions 执行。
 
+**[下载 AutoDL Keeper 1.3.0 安装包](https://github.com/austinbf/autodl-keeper/releases/download/v1.3.0/AutoDL-Keeper-1.3.0.zip)** · [查看 Release](https://github.com/austinbf/autodl-keeper/releases/tag/v1.3.0)
+
+<details>
+<summary>查看功能配图</summary>
+
+<img src="docs/assets/01-cover.png" width="240" alt="AutoDL 实例释放提醒">
+<img src="docs/assets/02-edge-popup.png" width="240" alt="Edge 扩展弹窗功能示意">
+<img src="docs/assets/03-cloud-keepalive.png" width="240" alt="GitHub Actions 云端保活">
+
+</details>
+
 ## 一、在 Edge 安装
 
-需要 Windows、Microsoft Edge 和 Python 3.12。下载或克隆项目，解压后保留整个目录。
+需要 Windows、Microsoft Edge 和 Python 3.12。下载上面的 Release ZIP 并解压，保留整个目录。也可克隆仓库。
 
 在项目根目录打开 PowerShell，首次安装时运行：
 
