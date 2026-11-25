@@ -4,7 +4,7 @@
 
 半夜收到实例释放提醒时，可以把「无卡开机、等运行、再关机」这套流程交给 AutoDL Keeper。Edge 弹窗用来查看实例和手动操作，云端工作流可以在你的电脑关机时继续执行。
 
-**[下载 Windows + Edge 安装包 ZIP](https://github.com/austinbf/autodl-keeper/releases/download/v1.3.0/AutoDL-Keeper-1.3.0.zip)** · [查看版本发布页](https://github.com/austinbf/autodl-keeper/releases/tag/v1.3.0)
+**[下载 Windows + Edge 安装包 ZIP](https://github.com/austinbf/autodl-keeper/releases/download/v1.3.1/AutoDL-Keeper-1.3.1.zip)** · [查看版本发布页](https://github.com/austinbf/autodl-keeper/releases/tag/v1.3.1)
 
 <details>
 <summary>查看三张功能示意图</summary>

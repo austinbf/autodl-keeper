@@ -28,7 +28,8 @@
 <h2 id="instances">实例健康</h2>
 <button id="load" class="secondary" disabled>刷新</button>
 </div>
-<div id="list">在左下角设置中保存令牌。</div>
+<p id="instance-status" role="status">正在读取设置…</p>
+<div id="list"></div>
 <button id="run" disabled>手动开关机</button>
 <div id="run-confirmation" hidden>
 <p id="run-summary"></p>
@@ -42,7 +43,8 @@
 <p id="configured" role="status"></p>
 
 <label for="token">AutoDL 网页令牌</label>
-<input id="token" type="password" autocomplete="off" spellcheck="false">
+<input id="token" type="password" autocomplete="off" spellcheck="false" aria-describedby="token-help">
+<p id="token-help">留空沿用已保存的令牌。粘贴新令牌并保存即可替换。</p>
 <label><input id="local-auto" type="checkbox" checked> 启用本机自动保活</label>
 <p>使用 GitHub Actions 时可关闭此项，仍可查询和手动运行。</p>
 <div class="row">

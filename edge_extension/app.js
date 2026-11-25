@@ -11,8 +11,12 @@ const message = byId("message");
 let configured = false;
 let localAuto = true;
 let loadedSettings = false;
+let instancesLoaded = false;
+let instanceError = "";
 let busy = false;
 let pending = false;
+let loading = false;
+let credentialRevision = 0;
 let nextAt = null;
 let completedAt = null;
 let items = [];
@@ -23,21 +27,44 @@ const checked = () => [...list.querySelectorAll("input:checked")].map((item) => 
 const stamp = (n) => new Date(n * 1000).toLocaleString("zh-CN");
 
 function updateButtons() {
+  token.placeholder = configured ? "••••••••••••••••" : "粘贴 AutoDL 网页令牌";
+  const savedState = configured ? "令牌已加密保存，刷新后仍可使用。"
+    : loadedSettings ? "尚未保存令牌" : "正在读取令牌状态…";
+  if (byId("configured").textContent !== savedState) byId("configured").textContent = savedState;
   byId("save").disabled = pending || busy || (!configured && !token.value.trim());
-  byId("load").disabled = pending || busy || !configured;
+  byId("load").disabled = pending || loading || busy || !configured;
   byId("forget").disabled = pending || busy || !configured;
   byId("run").disabled = pending || busy || !configured || !checked().length;
 }
 
 async function request(path, body) {
-  const response = await fetch(apiBase + path, body ? {
-    method: "POST",
-    headers: {"Content-Type": "application/json"},
-    body: JSON.stringify(body)
-  } : undefined);
+  let response;
+  try {
+    response = await fetch(apiBase + path, {
+      signal: AbortSignal.timeout(45000),
+      ...(body ? {
+        method: "POST",
+        headers: {"Content-Type": "application/json"},
+        body: JSON.stringify(body)
+      } : {})
+    });
+  } catch (error) {
+    throw new Error(error.name === "TimeoutError"
+      ? "请求超时，请检查网络后重试。"
+      : "无法连接本机服务，请启动 keeper_web.py 后重试。");
+  }
   const data = await response.json();
   if (!response.ok) throw new Error(data.error);
   return data;
+}
+
+function showInstanceStatus() {
+  const status = byId("instance-status");
+  const text = loading ? "正在查询 AutoDL 实例…"
+    : instanceError || (instancesLoaded ? (items.length ? "" : "未找到实例。")
+      : configured ? "等待查询实例…" : loadedSettings ? "在左下角设置中保存令牌。" : "正在读取设置…");
+  if (status.textContent !== text) status.textContent = text;
+  status.hidden = !text;
 }
 
 function renderInstances(force = false) {
@@ -69,7 +96,7 @@ function renderInstances(force = false) {
     label.append(input, details);
     list.append(label);
   }
-  if (!items.length) list.textContent = configured ? "未找到实例。" : "在左下角设置中保存令牌。";
+  showInstanceStatus();
   updateButtons();
 }
 
@@ -88,9 +115,25 @@ async function action(callback) {
 }
 
 async function loadInstances() {
-  const data = await request("/api/list", {});
-  items = data.instances;
-  renderInstances(true);
+  if (loading || pending) return;
+  loading = true;
+  instanceError = "";
+  showInstanceStatus();
+  const revision = credentialRevision;
+  updateButtons();
+  try {
+    const data = await request("/api/list", {});
+    if (revision !== credentialRevision) return;
+    items = data.instances;
+    instancesLoaded = true;
+    renderInstances(true);
+  } catch (error) {
+    if (revision === credentialRevision) instanceError = error.message;
+  } finally {
+    loading = false;
+    showInstanceStatus();
+    updateButtons();
+  }
 }
 
 function showSettings(open) {
@@ -102,24 +145,37 @@ function showSettings(open) {
 }
 
 byId("settings-toggle").addEventListener("click", () => showSettings(byId("settings").hidden));
-token.addEventListener("input", updateButtons);
+for (const event of ["input", "change"]) token.addEventListener(event, updateButtons);
 list.addEventListener("change", updateButtons);
-byId("save").addEventListener("click", () => action(async () => {
-  const data = await request("/api/configure", {token: token.value.trim(), local_auto: byId("local-auto").checked});
-  configured = true;
-  localAuto = data.local_auto;
-  if (!localAuto) nextAt = null;
-  token.value = "";
-  items = data.instances;
-  renderInstances(true);
-  message.textContent = "设置已保存。";
-}));
-byId("load").addEventListener("click", () => action(loadInstances));
+function saveSettings() {
+  if (byId("save").disabled) return;
+  action(async () => {
+    credentialRevision += 1;
+    const data = await request("/api/configure", {token: token.value.trim(), local_auto: byId("local-auto").checked});
+    configured = true;
+    localAuto = data.local_auto;
+    if (!localAuto) nextAt = null;
+    token.value = "";
+    items = data.instances;
+    instancesLoaded = true;
+    instanceError = "";
+    renderInstances(true);
+    message.textContent = "设置已保存。";
+  });
+}
+byId("save").addEventListener("click", saveSettings);
+token.addEventListener("keydown", (event) => {
+  if (event.key === "Enter") saveSettings();
+});
+byId("load").addEventListener("click", loadInstances);
 byId("forget").addEventListener("click", () => action(async () => {
+  credentialRevision += 1;
   await request("/api/forget", {});
   configured = false;
   nextAt = null;
   items = [];
+  instancesLoaded = false;
+  instanceError = "";
   renderInstances(true);
   message.textContent = "已停用自动保活并清除已保存的令牌。";
 }));
@@ -167,7 +223,6 @@ async function refresh() {
       loadedSettings = true;
     }
     completedAt = job.completed_at;
-    byId("configured").textContent = configured ? "令牌已加密保存" : "尚未保存令牌";
     const states = {idle: "等待运行", running: "批次运行中", done: "全部完成", failed: "批次失败"};
     byId("state").textContent = states[job.state];
     byId("last").textContent = job.last_state ? `上次自动批次 · ${states[job.last_state]}` : "";
@@ -183,11 +238,14 @@ async function refresh() {
       line.textContent = entry;
       return line;
     }));
-    if (refreshList && !pending && !busy) await action(loadInstances);
     updateButtons();
     updateCountdown();
+    showInstanceStatus();
+    if (refreshList && !busy) void loadInstances();
   } catch {
-    byId("state").textContent = "无法连接本机服务，请运行 keeper_web.py。";
+    const problem = "无法连接本机服务，请运行 keeper_web.py。";
+    byId("state").textContent = problem;
+    if (!loadedSettings) byId("configured").textContent = problem;
   } finally {
     setTimeout(refresh, 1500);
   }
@@ -195,5 +253,5 @@ async function refresh() {
 
 updateButtons();
 setInterval(() => { updateCountdown(); renderInstances(); }, 1000);
-setInterval(() => { if (configured && !busy && !pending) action(loadInstances); }, 300000);
+setInterval(() => { if (configured && !busy) void loadInstances(); }, 300000);
 refresh();
