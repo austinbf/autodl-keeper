@@ -62,3 +62,5 @@ footer { border-top: 1px solid var(--line); padding: .5rem 0; }
 .extension-popup footer { flex: 0 0 auto; }
 #log-details { margin-top: .4rem; }
 #log-details summary { color: var(--blue); cursor: pointer; }
+#settings .row { margin-top: .65rem; }
+#settings label + p { margin-top: .35rem; }

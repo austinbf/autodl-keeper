@@ -91,7 +91,7 @@ def scheduler():
             with LOCK:
                 config = load_config()
                 now = time.time()
-                if config.get("token") and JOB["state"] != "running":
+                if config.get("token") and config.get("local_auto", True) and JOB["state"] != "running":
                     if config["next_at"] <= now:
                         config["next_at"] += (int((now - config["next_at"]) // INTERVAL) + 1) * INTERVAL
                         save_config(config)
@@ -105,7 +105,8 @@ def scheduler():
                 if urgent:
                     with LOCK:
                         config = load_config()
-                        if config.get("token") == encrypted and JOB["state"] != "running":
+                        if (config.get("token") == encrypted and config.get("local_auto", True)
+                                and JOB["state"] != "running"):
                             config["urgent_retry_at"] = time.time() + URGENT_RETRY_INTERVAL
                             save_config(config)
                             JOB.update(state="running", events=[], automatic=True)
@@ -157,7 +158,8 @@ class Handler(BaseHTTPRequestHandler):
                 config = load_config()
                 snapshot = {**JOB, "events": JOB["events"][:],
                             "configured": bool(config.get("token")),
-                            "next_at": config.get("next_at"),
+                            "local_auto": config.get("local_auto", True),
+                            "next_at": config.get("next_at") if config.get("local_auto", True) else None,
                             "last_state": config.get("last_state"),
                             "last_events": config.get("last_events", [])}
             return self.reply(200, snapshot)
@@ -190,18 +192,34 @@ class Handler(BaseHTTPRequestHandler):
         token = body.get("token")
         try:
             if self.path == "/api/configure":
-                token = token.strip()
-                if not token or not token.isascii() or any(not 33 <= ord(c) <= 126 for c in token):
+                local_auto = body.get("local_auto", True)
+                if not isinstance(local_auto, bool):
                     raise ValueError()
-                instances = list_instances(token)
-                encrypted = dpapi(token)
+                with LOCK:
+                    previous = load_config()
+                token = (token or "").strip()
+                if token:
+                    if not token.isascii() or any(not 33 <= ord(c) <= 126 for c in token):
+                        raise ValueError()
+                    instances = list_instances(token)
+                    encrypted = dpapi(token)
+                elif previous.get("token"):
+                    encrypted = previous["token"]
+                    instances = list_instances(dpapi(encrypted, decrypt=True))
+                else:
+                    raise ValueError()
                 with LOCK:
                     if JOB["state"] == "running":
                         return self.reply(409, {"error": "请等待当前批次结束"})
                     config = load_config()
-                    config.update(token=encrypted, next_at=config.get("next_at", time.time() + INTERVAL))
+                    if config.get("token") != previous.get("token"):
+                        return self.reply(409, {"error": "令牌设置已变化，请重试"})
+                    if local_auto and not config.get("local_auto", True):
+                        config["next_at"] = time.time() + INTERVAL
+                    config.update(token=encrypted, local_auto=local_auto)
+                    config.setdefault("next_at", time.time() + INTERVAL)
                     save_config(config)
-                return self.reply(200, {"instances": instances})
+                return self.reply(200, {"instances": instances, "local_auto": local_auto})
             with LOCK:
                 saved = load_config().get("token")
             if not saved:

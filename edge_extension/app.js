@@ -9,6 +9,8 @@ const token = byId("token");
 const list = byId("list");
 const message = byId("message");
 let configured = false;
+let localAuto = true;
+let loadedSettings = false;
 let busy = false;
 let pending = false;
 let nextAt = null;
@@ -21,7 +23,7 @@ const checked = () => [...list.querySelectorAll("input:checked")].map((item) => 
 const stamp = (n) => new Date(n * 1000).toLocaleString("zh-CN");
 
 function updateButtons() {
-  byId("save").disabled = pending || busy || !token.value.trim();
+  byId("save").disabled = pending || busy || (!configured && !token.value.trim());
   byId("load").disabled = pending || busy || !configured;
   byId("forget").disabled = pending || busy || !configured;
   byId("run").disabled = pending || busy || !configured || !checked().length;
@@ -103,12 +105,14 @@ byId("settings-toggle").addEventListener("click", () => showSettings(byId("setti
 token.addEventListener("input", updateButtons);
 list.addEventListener("change", updateButtons);
 byId("save").addEventListener("click", () => action(async () => {
-  const data = await request("/api/configure", {token: token.value.trim()});
+  const data = await request("/api/configure", {token: token.value.trim(), local_auto: byId("local-auto").checked});
   configured = true;
+  localAuto = data.local_auto;
+  if (!localAuto) nextAt = null;
   token.value = "";
   items = data.instances;
   renderInstances(true);
-  message.textContent = "令牌已加密保存，已启用每八天一次的自动保活。";
+  message.textContent = "设置已保存。";
 }));
 byId("load").addEventListener("click", () => action(loadInstances));
 byId("forget").addEventListener("click", () => action(async () => {
@@ -140,8 +144,8 @@ byId("confirm-run").addEventListener("click", () => {
 });
 
 function updateCountdown() {
-  if (!nextAt) {
-    byId("countdown").textContent = "保存令牌后安排首次执行";
+  if (!nextAt || !localAuto) {
+    byId("countdown").textContent = configured && !localAuto ? "本机自动保活已关闭" : "保存令牌后安排首次执行";
     return;
   }
   const seconds = Math.max(0, Math.ceil(nextAt - Date.now() / 1000));
@@ -157,8 +161,13 @@ async function refresh() {
     configured = job.configured;
     busy = job.state === "running";
     nextAt = job.next_at;
+    localAuto = job.local_auto ?? true;
+    if (!loadedSettings) {
+      byId("local-auto").checked = localAuto;
+      loadedSettings = true;
+    }
     completedAt = job.completed_at;
-    byId("configured").textContent = configured ? "令牌已保存 · 每八天自动执行" : "自动保活未启用";
+    byId("configured").textContent = configured ? "令牌已加密保存" : "尚未保存令牌";
     const states = {idle: "等待运行", running: "批次运行中", done: "全部完成", failed: "批次失败"};
     byId("state").textContent = states[job.state];
     byId("last").textContent = job.last_state ? `上次自动批次 · ${states[job.last_state]}` : "";

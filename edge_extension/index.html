@@ -3,14 +3,14 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>AutoDL 续航</title>
+<title>AutoDL Keeper</title>
 <link rel="icon" type="image/png" sizes="32x32" href="icons/icon-32.png?v=122">
 <link rel="stylesheet" href="style.css">
 <script src="app.js" defer></script>
 </head>
 <body>
 <main>
-<header><img id="brand-icon" width="32" height="32" alt="" hidden><h1>AutoDL 续航</h1></header>
+<header><img id="brand-icon" width="32" height="32" alt="" hidden><h1>AutoDL Keeper</h1></header>
 <div class="views">
 <div id="dashboard">
 <section aria-labelledby="progress">
@@ -40,12 +40,14 @@
 <section id="settings" aria-labelledby="settings-title" hidden>
 <h2 id="settings-title" tabindex="-1">设置</h2>
 <p id="configured" role="status"></p>
-<p>连续关机释放时间剩余三天时，自动提前保活。</p>
+
 <label for="token">AutoDL 网页令牌</label>
 <input id="token" type="password" autocomplete="off" spellcheck="false">
+<label><input id="local-auto" type="checkbox" checked> 启用本机自动保活</label>
+<p>使用 GitHub Actions 时可关闭此项，仍可查询和手动运行。</p>
 <div class="row">
-<button id="save" disabled>保存令牌</button>
-<button id="forget" class="secondary" disabled>停用自动保活</button>
+<button id="save" disabled>保存设置</button>
+<button id="forget" class="secondary" disabled>清除令牌</button>
 </div>
 </section>
 </div>

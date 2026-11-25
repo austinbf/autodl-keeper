@@ -1,155 +1,87 @@
-# AutoDL Server Keeper
+# AutoDL Keeper
 
-这个仓库包含了一个 Python 脚本，它的作用是定期唤醒 [AutoDL](https://www.autodl.com/) 的服务器实例，以避免在不活跃14天后被自动销毁。
+AutoDL 实例保活工具。Edge 弹窗查看实例状态、磁盘健康和预计释放时间，
+也可手动执行无卡开关机。自动保活可由 Windows 本机服务或 GitHub Actions 执行。
 
-## 功能
+## 一、在 Edge 安装
 
-- 定时触发服务器实例的电源操作，确保服务器不会因长时间不活跃而被销毁。
-- 自动登录并发送 HTTP 请求来管理服务器电源状态。
-- 日志记录每次操作的状态，便于追踪和调试。
+需要 Windows、Microsoft Edge 和 Python 3.12。下载或克隆项目，解压后保留整个目录。
 
-## 使用方法
-
-在开始使用之前，你需要配置几个环境变量。这些环境变量将用于脚本中，以确保你的认证信息安全。
-
-创建一个 `.env` 文件，并填写你的 `AUTHORIZATION` token：
-
-```plaintext
-# .env 文件内容
-AUTHORIZATION=你的认证token
-```
-
-**注意：** 切记不要将 `.env` 文件推送到你的公开仓库。
-
-## 如何使用
-
-1. 克隆此仓库到你的本地或服务器上。
-2. 安装必要的依赖：
-
-```bash
-pip install -r requirements.txt
-```
-
-
-3. 运行 `main.py` 脚本：
-
-```bash
-python main.py
-```
-
-4. 脚本会开始按照预设的间隔时间唤醒和关闭指定的服务器实例。
-
-## 配置
-
-- 确保你的 `main.py` 文件中的 `headers` 和 `manage_power` 函数里的参数配置正确。
-- 你可以修改调度器 `scheduler` 的时间间隔，来设置唤醒服务器的频率。
-
-
-## 自动化保活工作流
-
-为了防止 [AutoDL](https://www.autodl.com/) 服务器在不活跃14天后自动销毁，本仓库配置了一个自动化的 GitHub Actions 工作流，该工作流会定时执行一个简单的 Python 脚本来启动服务器。
-
-### 工作流描述
-
-- **名称**: AutoDL Keep Alive
-- **触发时间**: 每天北京时间早上4点
-- **工作流任务**:
-  1. 检出仓库代码
-  2. 设置 Python 环境
-  3. 安装所需依赖
-  4. 执行 `main.py` 中的 `change` 函数，触发服务器的启动和关闭操作
-
-### 安全性说明
-
-为了保护敏感信息，如 `authorization` 令牌，我们不将其直接存储在代码或工作流文件中。相反，我们使用 GitHub 仓库的 Secrets 功能来安全地存储并在工作流中引用这些值。
-
-在创建了这个工作流文件之后，你需要在 GitHub 仓库的 Settings -> Secrets 部分添加名为 AUTHORIZATION 的 secret。这个 secret 应该包含你的授权令牌，它会在工作流运行时被设置为环境变量。
-
-![](https://raw.githubusercontent.com/glwhappen/images/main/img/202311081933806.png)
-
-## 安全和隐私
-
-- 确保你的 `authorization` 令牌安全，不要公开在互联网上。
-- 不要在任何地方公开你的个人密钥和敏感数据。
-
-## 贡献
-
-如果你有任何改进建议或功能请求，请创建一个 Issue 或者提交一个 Pull Request。
-
-## 本地复现（Windows PowerShell）
-
-安装依赖后，在仓库目录运行以下命令。提示出现时粘贴 AutoDL 网页请求的
-`authorization` 值，输入不会回显。
+在项目根目录打开 PowerShell，首次安装时运行：
 
 ```powershell
-$env:AUTHORIZATION = Read-Host 'AutoDL 网页令牌' -MaskInput
-python main.py --list
+py -3.12 -m venv .venv
+.\.venv\Scripts\python.exe -m pip install -r requirements.txt
 ```
 
-列表会分页读取账号下的全部实例，仅显示实例 UUID 和状态。
-指定要保活的实例后，可手动执行一次无卡开机和关机：
+启动本机服务：
 
 ```powershell
-$env:AUTODL_INSTANCE_UUID = Read-Host '实例 UUID'
-$env:RUN_CHANGE_FUNCTION = '1'
-python main_scheduler.py
-Remove-Item Env:RUN_CHANGE_FUNCTION
+.\.venv\Scripts\python.exe keeper_web.py
 ```
 
-持续运行 `python main_scheduler.py` 会每 5 分钟检查指定实例。脚本只尝试
-启动已关机的实例，接口接受开机请求后等待 60 秒再发送关机请求。
-`python main.py --shutdown_all` 会关闭当前查询结果中所有运行中的实例。
+1. 在 Edge 打开 `edge://extensions/`，开启「开发人员模式」。
+2. 选择「加载解压缩的扩展」，选中项目里的 `edge_extension` 文件夹。
+3. 点击工具栏的 **AutoDL Keeper** 图标，打开左下角「设置」。
+4. 在 AutoDL 网页登录后，打开开发人员工具的「网络」面板，刷新实例列表。
+   选中发送给 `www.autodl.com` 的实例列表请求，在「请求标头」中复制
+   `authorization` 的值，填入扩展并点击「保存设置」。
 
-## 本地控制面板插件
+令牌使用当前 Windows 用户的 DPAPI 加密保存在本机，过期后从设置中更新。
+扩展只连接本机 `127.0.0.1:8765`。如果显示「无法连接本机服务」，先检查
+上面的 Python 命令是否仍在运行。更新项目后，重启本机服务，并在 Edge 扩展管理页
+点击「重新加载」。
 
-在仓库目录运行 `..venvScriptspython.exe keeper_web.py`，然后打开
-`http://127.0.0.1:8765/`。输入网页登录令牌，查询并勾选已关机的实例，
-确认后按列表顺序逐台测试。面板会显示每台机器的无卡运行与关机确认结果。
+## 二、选择自动保活方式
 
-关闭页面后，正在运行的批次继续在本地服务内执行。请在批次完成后再退出服务。
-令牌通过本地表单提交，服务不写入文件。可在 Python 中直接调用
-`keeper_plugin.run_sequence(token, uuids, report)` 复用同一批次流程。
+### GitHub Actions
 
-## Microsoft Edge 扩展
+适合电脑常关机、希望任务在云端运行的用户。可使用 GitHub Actions 免费额度。
+AutoDL 无卡开机按平台规则计费。
 
-1. 在仓库目录运行 `..venvScriptspython.exe keeper_web.py`。
-2. 打开 Edge 的 `edge://extensions/`，开启「开发人员模式」。
-3. 点「加载解压缩的扩展」，选择仓库内的 `edge_extension` 文件夹。
-4. 点击工具栏中的 **AutoDL 续航** 图标打开弹窗，从左下角「设置」保存令牌。
-   返回首页查看倒计时和实例健康，或勾选实例后手动运行。
+1. 把项目复制到你有写权限的 GitHub 仓库，并确认默认分支包含
+   `.github/workflows/AutoDL-Keeper.yml`。
+2. 在仓库进入 **Settings → Secrets and variables → Actions → New repository secret**。
+   名称填 `AUTHORIZATION`，值填 AutoDL 网页令牌。令牌过期后也在这里更新。
+3. 打开 **Actions → AutoDL Keeper → Run workflow**，首次保留「仅检查实例和保活条件」勾选。
+   日志应显示查到的实例数和符合保活条件的实例数。
+4. 云端检查成功后，在 Edge 弹窗的「设置」中取消勾选「启用本机自动保活」并保存。
+   Edge 仍可查询实例和手动运行；云端执行历史在 GitHub Actions 查看。
 
-扩展只连接本机服务 `127.0.0.1:8765`，网页和扩展共用一套控制台。
-首次加载的扩展 ID 应为 `obkehkidojnnmljfckkneckcgicikddm`。
-八天一次的 Windows 定时任务需要单独配置。
+工作流每 6 小时检查一次。已关机的实例连续关机满 8 天，或距预计释放不超过 72 小时，
+就逐台无卡开机，确认运行后关机。GitHub 的定时触发可能延迟；公开仓库持续 60 天无活动
+时，GitHub 可能停用定时工作流。详见 [GitHub 定时工作流文档](https://docs.github.com/en/actions/reference/workflows-and-actions/events-that-trigger-workflows#schedule)。
 
-### 自动保活与实例健康
+### Windows 本机
 
-在 Edge 的扩展管理页重新加载扩展，再打开弹窗。首次在左下角「设置」点击「保存令牌」
-后，会用当前 Windows 用户的 DPAPI 加密保存令牌，并安排八天后的首次执行。
-更新令牌会沿用原定时间。「停用自动保活」会清除已保存的令牌和计划。
+在扩展设置中勾选「启用本机自动保活」并保存。弹窗会显示下次本机保活的倒计时。
+本机服务每 8 天批量处理一次已关机的实例，并每 15 分钟检查是否有实例距预计释放
+只剩 72 小时。关闭 Edge 不影响本机服务。电脑关机时无法执行，服务恢复后会补跑错过
+的批次。
 
-自动批次会重新分页列出账号内实例，按顺序处理已关机的实例。页面关闭后，本机服务仍会
-执行计划。电脑休眠或关机期间无法执行，恢复服务后会补跑一次错过的批次。
-可运行 `enable_keeper_startup.ps1` 注册当前 Windows 用户登录时启动的任务。
-无需保持 Edge 打开。令牌过期后，需要在控制台保存新的令牌。
+如需 Windows 登录后自动启动本机服务，在项目根目录运行：
 
-到期标记综合 API 提供的租期和关机释放估算，取最早时间。剩余三天或已到期的实例
-标红。磁盘健康来自 AutoDL 的 `disk_health_status`。
+```powershell
+.\enable_keeper_startup.ps1
+```
 
-本机服务每 15 分钟检查关机释放时间。剩余 72 小时以内的实例会提前执行无卡开关机，
-完成后复查释放时间，八天计划照常。若未确认释放时间延后，最早一小时后重试。
-租期到期与主机下架仍显示红色提醒。
+该命令注册名为 `AutoDL Keeper` 的 Windows 计划任务。
 
-## GitHub Actions 云端保活
+## 三、健康提示与执行记录
 
-将本项目的修改放进你自己的私有 GitHub 仓库，并将工作流合并到默认分支。
-在仓库的 Settings → Secrets and variables → Actions 中创建 `AUTHORIZATION`，
-值为 AutoDL 网页令牌。令牌过期后在这里更新。
+- 距预计释放或 API 返回的租期、主机下架时间不超过 72 小时的实例会标红。
+  租期与主机下架期限无法通过开关机延长。
+- 批次按顺序处理已关机的实例，确认一台恢复关机后才处理下一台。
+- 本机日志在执行时自动展开，结束后可手动打开「执行日志」查看。
+- 「清除令牌」只清除本机设置。云端令牌由 GitHub Actions Secret 单独管理。
 
-在 Actions → AutoDL 续航 → Run workflow 保持「仅检查」勾选，可先验证
-GitHub runner 能查询实例。之后定时任务每六小时检查一次，遇到连续关机满八天或
-距预计释放不超过 72 小时的实例就逐台无卡开关机。每台的计时基于 AutoDL 返回的
-最后关机时间，漏掉一次定时运行后会在下次检查重新判断。
+## 目录结构
 
-云端结果可在 Actions 日志查看。Edge 弹窗当前显示的是本机计划。
-云端验证通过后，可在扩展设置中停用本机自动保活，避免两套任务同时操作实例。
+| 路径 | 用途 |
+| --- | --- |
+| `edge_extension/` | 可加载的 Manifest V3 Edge 扩展 |
+| `keeper_web.py`、`keeper_schedule.py` | Windows 本地 API、加密凭据与调度 |
+| `autodl/`、`keeper_plugin.py` | AutoDL 接口、分页、实例健康和逐台电源操作 |
+| `keeper_actions.py`、`.github/workflows/AutoDL-Keeper.yml` | 云端保活入口和工作流 |
+
+项目地址 [austinbf/autodl-keeper](https://github.com/austinbf/autodl-keeper)。
